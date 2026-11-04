@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In & Role Switcher — H₂SENSE{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="safety-card p-4 p-md-5">
+                <div class="text-center mb-4">
+                    <div class="brand-font fs-2 text-dark mb-2">
+                        <i class="fa-solid fa-shield-virus text-info me-2"></i>H₂SENSE
+                    </div>
+                    <h2 class="h4 fw-bold text-dark mb-1">Safety Portal Authentication</h2>
+                    <p class="text-muted small">Select a prototype demonstration role to continue:</p>
+                </div>
+
+                <!-- 1-Click Demo Role Switcher Buttons -->
+                <div class="d-flex flex-column gap-2 mb-4">
+                    <form method="POST" action="{{ url_for('main.login') }}">
+                        <input type="hidden" name="role" value="ADMIN">
+                        <button type="submit" class="btn btn-outline-info w-100 p-3 text-start d-flex align-items-center justify-content-between rounded-3">
+                            <div>
+                                <div class="fw-bold text-dark"><i class="fa-solid fa-user-gear me-2 text-info"></i> Plant Administrator</div>
+                                <div class="small text-muted">Full administrative privileges & system metrics</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right text-info"></i>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{{ url_for('main.login') }}">
+                        <input type="hidden" name="role" value="SAFETY_OFFICER">
+                        <button type="submit" class="btn btn-outline-warning w-100 p-3 text-start d-flex align-items-center justify-content-between rounded-3">
+                            <div>
+                                <div class="fw-bold text-dark"><i class="fa-solid fa-helmet-safety me-2 text-warning"></i> Safety Officer</div>
+                                <div class="small text-muted">Compliance audits & threshold monitoring</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right text-warning"></i>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{{ url_for('main.login') }}">
+                        <input type="hidden" name="role" value="WORKER">
+                        <input type="hidden" name="worker_code" value="W104">
+                        <button type="submit" class="btn btn-outline-success w-100 p-3 text-start d-flex align-items-center justify-content-between rounded-3">
+                            <div>
+                                <div class="fw-bold text-dark"><i class="fa-solid fa-id-badge me-2 text-success"></i> Operator (W104 — Sarah Jenkins)</div>
+                                <div class="small text-muted">Personal badge exposure & shift logs</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right text-success"></i>
+                        </button>
+                    </form>
+                </div>
+
+                <div class="text-center small text-muted border-top pt-3" style="border-color: var(--border-color) !important;">
+                    <i class="fa-solid fa-circle-check text-info me-1"></i>
+                    Prototype session mode: Single-click instant switching enabled.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

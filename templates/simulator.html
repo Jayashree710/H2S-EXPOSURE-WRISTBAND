@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Digital H₂S Sensor Simulator — H₂SENSE{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-lg-5 py-4">
+    <!-- Breadcrumb & Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom" style="border-color: var(--border-color) !important;">
+        <div>
+            <span class="text-info small text-uppercase fw-bold"><i class="fa-solid fa-flask-vial me-1"></i> Virtual Prototype Instrumentation</span>
+            <h1 class="h2 fw-bold text-dark mb-1">Digital H₂S Sensor Simulator</h1>
+            <p class="text-muted small mb-0">
+                Simulates the optical colorimetric response across predetermined exposure increments for optical scanning demonstration.
+            </p>
+        </div>
+        <div class="mt-3 mt-md-0">
+            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 py-2 px-3">
+                <i class="fa-solid fa-triangle-exclamation me-1"></i> Prototype calibration thresholds — not certified occupational limits
+            </span>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left Column: Large Sensor Panel Display -->
+        <div class="col-lg-6">
+            <div class="sensor-display-panel h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="small text-muted text-uppercase fw-bold tracking-wide">
+                            <i class="fa-solid fa-circle-dot text-info me-1"></i> COLORIMETRIC SUBSTRATE
+                        </span>
+                        <span id="displayBadge" class="badge-safe">SAFE</span>
+                    </div>
+
+                    <!-- Large Sensor Disc Display -->
+                    <div class="py-4">
+                        <div id="sensorColorArea" class="sensor-color-disc" style="width: 240px; height: 240px; background-color: rgb(34, 197, 94); --current-glow: rgba(34, 197, 94, 0.45); border: 6px solid #ffffff; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+                        </div>
+                    </div>
+
+                    <!-- Exposure & Risk Output -->
+                    <div class="mb-4">
+                        <div class="text-muted small text-uppercase fw-bold">Simulated Sensor Exposure</div>
+                        <div class="display-4 fw-bold text-dark" id="exposureDisplay">
+                            0.0 <span class="fs-5 text-muted">units</span>
+                        </div>
+                        <div class="fw-semibold fs-5 mt-1" id="statusDisplay" style="color: var(--color-safe);">
+                            SAFE / BASELINE
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Color Coordinates Card (RGB & LAB) -->
+                <div class="p-3 rounded-3 border mt-3" style="background: #f8fafc; border-color: var(--border-color) !important;">
+                    <div class="row g-2 text-center">
+                        <div class="col-6">
+                            <div class="small text-muted mb-1">RGB COLOR SPACE</div>
+                            <div class="code-font fw-bold text-dark" id="rgbDisplay">rgb(34, 197, 94)</div>
+                            <div class="small text-secondary code-font" id="hexDisplay">#22c55e</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="small text-muted mb-1">CIE L*a*b* SPACE</div>
+                            <div class="code-font fw-bold text-info" id="labDisplay">L: 70.5  a: -60.2  b: 41.5</div>
+                            <div class="small text-secondary">Perceptual Norm</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Send to Scanner Action CTA -->
+                <div class="d-flex flex-wrap gap-2 mt-4 pt-3 border-top" style="border-color: var(--border-color) !important;">
+                    <button id="btnSendToScanner" class="btn-safety-primary flex-grow-1 justify-content-center">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Send to Scanner Workstation
+                    </button>
+                    <button id="btnDownloadSwatch" class="btn-safety-outline" title="Download simulated badge image for file upload testing">
+                        <i class="fa-solid fa-download"></i> Save Test Image
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Preset Buttons & Continuous Control Slider -->
+        <div class="col-lg-6">
+            <div class="safety-card mb-4">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-list-ol text-info"></i> Predefined Prototype Presets
+                    </div>
+                    <span class="small text-muted">Select exposure value</span>
+                </div>
+                
+                <p class="small text-muted mb-3">
+                    Click any exposure level below to simulate the corresponding chemical substrate colorimetric response:
+                </p>
+
+                <!-- 8 Preset Buttons: 0, 10, 25, 50, 75, 100, 150, 200 -->
+                <div class="preset-grid mb-4">
+                    <button class="btn-preset active" data-exp="0" data-r="34" data-g="197" data-b="94">
+                        <span class="d-block fs-5 fw-bold">0</span>
+                        <span class="badge-safe mt-1">SAFE</span>
+                    </button>
+                    <button class="btn-preset" data-exp="10" data-r="95" data-g="207" data-b="72">
+                        <span class="d-block fs-5 fw-bold">10</span>
+                        <span class="badge-safe mt-1">SAFE</span>
+                    </button>
+                    <button class="btn-preset" data-exp="25" data-r="163" data-g="230" data-b="53">
+                        <span class="d-block fs-5 fw-bold">25</span>
+                        <span class="badge-safe mt-1">SAFE</span>
+                    </button>
+                    <button class="btn-preset" data-exp="50" data-r="234" data-g="179" data-b="8">
+                        <span class="d-block fs-5 fw-bold">50</span>
+                        <span class="badge-caution mt-1">CAUTION</span>
+                    </button>
+                    <button class="btn-preset" data-exp="75" data-r="249" data-g="115" data-b="22">
+                        <span class="d-block fs-5 fw-bold">75</span>
+                        <span class="badge-high mt-1">HIGH</span>
+                    </button>
+                    <button class="btn-preset" data-exp="100" data-r="239" data-g="68" data-b="68">
+                        <span class="d-block fs-5 fw-bold">100</span>
+                        <span class="badge-high mt-1">HIGH</span>
+                    </button>
+                    <button class="btn-preset" data-exp="150" data-r="185" data-g="28" data-b="28">
+                        <span class="d-block fs-5 fw-bold">150</span>
+                        <span class="badge-critical mt-1">CRITICAL</span>
+                    </button>
+                    <button class="btn-preset" data-exp="200" data-r="127" data-g="29" data-b="29">
+                        <span class="d-block fs-5 fw-bold">200</span>
+                        <span class="badge-critical mt-1">CRITICAL</span>
+                    </button>
+                </div>
+
+                <!-- Continuous Exposure Slider -->
+                <div class="pt-3 border-top" style="border-color: var(--border-color) !important;">
+                    <label for="continuousSlider" class="form-label-safety d-flex justify-content-between align-items-center">
+                        <span><i class="fa-solid fa-sliders text-info me-1"></i> Continuous Exposure Slider</span>
+                        <span class="code-font text-info fw-bold" id="sliderValuePill">0 ppm</span>
+                    </label>
+                    <input type="range" class="form-range w-100" id="continuousSlider" min="0" max="200" step="1" value="0">
+                    <div class="d-flex justify-content-between small text-muted mt-1">
+                        <span>0 (Clean)</span>
+                        <span>50 (Caution)</span>
+                        <span>100 (High)</span>
+                        <span>200 (Severe)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prototype Threshold Mapping Explainer Card -->
+            <div class="safety-card">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-circle-info text-info"></i> Prototype Risk Threshold Guide
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table-safety">
+                        <thead>
+                            <tr>
+                                <th>Range (ppm)</th>
+                                <th>Category</th>
+                                <th>Visual Response</th>
+                                <th>Recommended Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="code-font fw-bold">0 – 25</td>
+                                <td><span class="badge-safe">SAFE</span></td>
+                                <td>Green &bull; Chartreuse</td>
+                                <td class="small text-muted">Normal shift activity</td>
+                            </tr>
+                            <tr>
+                                <td class="code-font fw-bold">25 – 50</td>
+                                <td><span class="badge-caution">CAUTION</span></td>
+                                <td>Amber &bull; Deep Yellow</td>
+                                <td class="small text-muted">Elevated monitoring, inspect seal</td>
+                            </tr>
+                            <tr>
+                                <td class="code-font fw-bold">50 – 100</td>
+                                <td><span class="badge-high">HIGH</span></td>
+                                <td>Vibrant Orange &bull; Red</td>
+                                <td class="small text-muted">Supervisor alert; rotation required</td>
+                            </tr>
+                            <tr>
+                                <td class="code-font fw-bold">&gt; 100</td>
+                                <td><span class="badge-critical">CRITICAL</span></td>
+                                <td>Deep Red &bull; Dark Brown</td>
+                                <td class="small text-muted">Immediate evacuation & medical review</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="small text-muted mt-2">
+                    <i class="fa-solid fa-book-bookmark me-1 text-info"></i>
+                    These bands illustrate system functionality and do not replace NIOSH / OSHA certified sensor thresholds.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Embed server-side calibration points for client-side interpolation
+    window.CALIBRATION_POINTS = {{ calibration_points | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/simulator.js') }}"></script>
+{% endblock %}

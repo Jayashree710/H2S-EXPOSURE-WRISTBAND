@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Worker Profile — {{ worker.worker_code }} — H₂SENSE{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-lg-5 py-4">
+    <!-- Breadcrumb & Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom" style="border-color: var(--border-color) !important;">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('workers.workers_list') }}" class="text-info text-decoration-none">Personnel</a></li>
+                    <li class="breadcrumb-item active text-muted" aria-current="page">{{ worker.worker_code }}</li>
+                </ol>
+            </nav>
+            <h1 class="h2 fw-bold text-dark mb-1">
+                {{ worker.name }} <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">{{ worker.worker_code }}</span>
+            </h1>
+        </div>
+
+        <div class="d-flex gap-2 mt-3 mt-md-0">
+            <a href="{{ url_for('dashboard.worker_dashboard', id=worker.id) }}" class="btn btn-sm btn-safety-outline">
+                <i class="fa-solid fa-chart-line me-1"></i> Personal Dashboard
+            </a>
+            <button class="btn btn-sm btn-safety-primary" data-bs-toggle="modal" data-bs-target="#renewBadgeModal">
+                <i class="fa-solid fa-rotate me-1"></i> Issue / Renew Badge
+            </button>
+        </div>
+    </div>
+
+    <!-- Overview Details Grid -->
+    <div class="row g-4 mb-4">
+        <!-- Worker & Badge Info Card -->
+        <div class="col-lg-4">
+            <div class="safety-card h-100">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-address-card text-info"></i> Personnel Details
+                    </div>
+                    <span class="badge {{ 'bg-success bg-opacity-25 text-success border border-success' if worker.status == 'ACTIVE' else 'bg-secondary' }}">
+                        {{ worker.status }}
+                    </span>
+                </div>
+
+                <ul class="list-unstyled small space-y-3 mb-4">
+                    <li class="d-flex justify-content-between py-2 border-bottom" style="border-color: var(--border-color) !important;">
+                        <span class="text-muted">Department:</span>
+                        <span class="text-dark fw-semibold">{{ worker.department }}</span>
+                    </li>
+                    <li class="d-flex justify-content-between py-2 border-bottom" style="border-color: var(--border-color) !important;">
+                        <span class="text-muted">Role:</span>
+                        <span class="text-dark fw-semibold">{{ worker.role }}</span>
+                    </li>
+                    <li class="d-flex justify-content-between py-2 border-bottom" style="border-color: var(--border-color) !important;">
+                        <span class="text-muted">Contact:</span>
+                        <span class="text-dark">{{ worker.phone or 'Not Provided' }}</span>
+                    </li>
+                    <li class="d-flex justify-content-between py-2 border-bottom" style="border-color: var(--border-color) !important;">
+                        <span class="text-muted">Registered On:</span>
+                        <span class="text-dark code-font">{{ worker.created_at.strftime('%Y-%m-%d') if worker.created_at else '' }}</span>
+                    </li>
+                </ul>
+
+                <!-- Active Badge Section -->
+                <div class="p-3 rounded-3 border" style="background: #f8fafc; border-color: var(--border-color) !important;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted fw-bold text-uppercase">Active Optical Badge</span>
+                        {% if badge %}
+                            {% if badge.validity_status == 'VALID' %}
+                                <span class="badge-safe">VALID</span>
+                            {% elif badge.validity_status == 'NEAR EXPIRY' %}
+                                <span class="badge-caution">NEAR EXPIRY</span>
+                            {% else %}
+                                <span class="badge-critical">EXPIRED</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-secondary">NONE</span>
+                        {% endif %}
+                    </div>
+
+                    {% if badge %}
+                        <div class="fs-5 fw-bold text-dark code-font mb-1">{{ badge.badge_code }}</div>
+                        <div class="small text-muted">
+                            <div>Activated: {{ badge.activation_date.strftime('%Y-%m-%d') }} (Age: {{ badge.badge_age_days }} days)</div>
+                            <div>Expires: {{ badge.expiry_date.strftime('%Y-%m-%d') }} ({{ badge.days_remaining }} days remaining)</div>
+                        </div>
+                    {% else %}
+                        <div class="text-muted small">No active badge assigned.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Exposure Progression Chart -->
+        <div class="col-lg-5">
+            <div class="safety-card h-100">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-chart-line text-info"></i> Exposure Progress
+                    </div>
+                    <span class="code-font text-warning fw-bold">{{ cumulative_exposure }} ppm cumulative</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="workerDetailLineChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Distribution Chart -->
+        <div class="col-lg-3">
+            <div class="safety-card h-100">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-chart-pie text-info"></i> Risk Breakdown
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="workerRiskDoughnut"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Complete Exposure Records History Table -->
+    <div class="safety-card">
+        <div class="safety-card-header">
+            <div class="safety-card-title">
+                <i class="fa-solid fa-clock-rotate-left text-info"></i> Comprehensive Shift History & Optical Measurements
+            </div>
+            <span class="small text-muted">{{ records|length }} Scans</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table-safety">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Checkpoint</th>
+                        <th>Badge</th>
+                        <th>Sampled Color</th>
+                        <th>Raw Exp</th>
+                        <th>T / H Env</th>
+                        <th>Corrected Exp</th>
+                        <th>Shift &Delta;</th>
+                        <th>Cumulative</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                        <tr>
+                            <td class="code-font small text-muted">{{ r.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <span class="badge {{ 'bg-info bg-opacity-10 text-info border border-info border-opacity-25' if r.scan_type == 'ENTRY' else 'bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25' }} small">
+                                    {{ r.scan_type }}
+                                </span>
+                            </td>
+                            <td class="code-font small text-muted">{{ r.badge.badge_code }}</td>
+                            <td>
+                                <span class="d-inline-block rounded-circle me-1" style="width: 14px; height: 14px; background-color: rgb({{ r.r }}, {{ r.g }}, {{ r.b }}); vertical-align: middle; border: 1px solid #cbd5e1;"></span>
+                                <span class="code-font small text-muted">#{{ "%02x%02x%02x"|format(r.r, r.g, r.b) }}</span>
+                            </td>
+                            <td class="code-font small text-muted">{{ r.raw_exposure }}</td>
+                            <td class="code-font small text-muted">{{ r.temperature }}°C / {{ r.humidity }}%</td>
+                            <td class="code-font fw-bold text-dark small">{{ r.corrected_exposure }}</td>
+                            <td class="code-font text-info small">+{{ r.shift_exposure }}</td>
+                            <td class="code-font text-warning fw-bold small">{{ r.cumulative_exposure }}</td>
+                            <td>
+                                {% if r.status == 'SAFE' %}
+                                    <span class="badge-safe">SAFE</span>
+                                {% elif r.status == 'CAUTION' %}
+                                    <span class="badge-caution">CAUTION</span>
+                                {% elif r.status == 'HIGH' %}
+                                    <span class="badge-high">HIGH</span>
+                                {% else %}
+                                    <span class="badge-critical">CRITICAL</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="10" class="text-center py-4 text-muted small">
+                                No shift logs recorded for this operator.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Renew Badge Modal -->
+<div class="modal fade" id="renewBadgeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main);">
+            <div class="modal-header border-bottom" style="border-color: var(--border-color) !important;">
+                <h5 class="modal-title fw-bold">
+                    <i class="fa-solid fa-rotate text-info me-2"></i> Issue Replacement Badge
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('workers.renew_badge', id=worker.id) }}">
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">
+                        Issuing a replacement badge will revoke current badge authorization and initialize a fresh 180-day optical calibration cycle.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label-safety">New Badge Code</label>
+                        <input type="text" name="badge_code" class="form-control form-control-safety" value="BD-{{ worker.worker_code }}-R2" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-top" style="border-color: var(--border-color) !important;">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-safety-primary">Issue New Badge</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const records = {{ records_json | tojson }};
+        const statusCounts = {{ status_counts | tojson }};
+        const chronological = records.slice().reverse();
+
+        // 1. Line chart
+        const lineCtx = document.getElementById('workerDetailLineChart');
+        if (lineCtx && chronological.length > 0) {
+            new Chart(lineCtx, {
+                type: 'line',
+                data: {
+                    labels: chronological.map(r => r.date_only + ' ' + r.time_only),
+                    datasets: [{
+                        label: 'Corrected Exposure (ppm)',
+                        data: chronological.map(r => r.corrected_exposure),
+                        borderColor: '#0284c7',
+                        backgroundColor: 'rgba(2, 132, 199, 0.12)',
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#475569', maxRotation: 45, font: { weight: '500' } }, grid: { color: 'rgba(0, 0, 0, 0.05)' } },
+                        y: { ticks: { color: '#475569', font: { weight: '500' } }, grid: { color: 'rgba(0, 0, 0, 0.05)' } }
+                    }
+                }
+            });
+        }
+
+        // 2. Risk Doughnut Chart
+        const doughnutCtx = document.getElementById('workerRiskDoughnut');
+        if (doughnutCtx) {
+            new Chart(doughnutCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Safe', 'Caution', 'High', 'Critical'],
+                    datasets: [{
+                        data: [
+                            statusCounts.SAFE || 0,
+                            statusCounts.CAUTION || 0,
+                            statusCounts.HIGH || 0,
+                            statusCounts.CRITICAL || 0
+                        ],
+                        backgroundColor: ['#16a34a', '#d97706', '#ea580c', '#dc2626'],
+                        borderColor: '#ffffff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#334155', font: { size: 10, weight: '500' } } }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

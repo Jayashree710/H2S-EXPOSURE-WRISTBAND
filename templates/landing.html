@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+
+{% block title %}H₂SENSE — Industrial H₂S Exposure Detection & Workforce Safety{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="py-5 py-lg-6 position-relative overflow-hidden">
+    <div class="container-fluid px-lg-5">
+        <div class="row align-items-center gy-5">
+            <!-- Left Hero Content -->
+            <div class="col-lg-7">
+                <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill mb-4" style="background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.25);">
+                    <span class="pulse-indicator green"></span>
+                    <span class="text-info small fw-semibold">Next-Gen Industrial Hygiene Prototype</span>
+                </div>
+
+                <h1 class="display-3 fw-bold mb-3" style="letter-spacing: -0.03em; line-height: 1.1; color: var(--text-main);">
+                    Know Your Exposure.<br>
+                    <span style="background: linear-gradient(135deg, #0284c7, #0d9488, #0369a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        Protect Your Workforce.
+                    </span>
+                </h1>
+
+                <p class="lead text-muted mb-4" style="max-width: 580px; font-size: 1.15rem;">
+                    An intelligent colorimetric exposure-monitoring platform that transforms sensor color response into actionable cumulative exposure insights.
+                </p>
+
+                <!-- CTAs -->
+                <div class="d-flex flex-wrap gap-3 mb-5">
+                    <a href="{{ url_for('scanner.scanner_view') }}" class="btn-safety-primary">
+                        <i class="fa-solid fa-camera"></i> Launch Scanner
+                    </a>
+                    <a href="{{ url_for('dashboard.admin_dashboard') }}" class="btn-safety-outline">
+                        <i class="fa-solid fa-chart-line"></i> View Dashboard
+                    </a>
+                    <a href="{{ url_for('simulator.simulator_view') }}" class="btn-safety-outline border-info text-info">
+                        <i class="fa-solid fa-sliders"></i> Test Sensor Simulator
+                    </a>
+                </div>
+
+                <!-- Dynamic Live Telemetry Counters -->
+                <div class="row g-3 pt-3 border-top" style="max-width: 680px; border-color: var(--border-color) !important;">
+                    <div class="col-sm-3 col-6">
+                        <div class="metric-label">Active Workers</div>
+                        <div class="fs-4 fw-bold" style="color: var(--text-main);">{{ active_count or 5 }}</div>
+                        <div class="small text-muted">Tracked Personnel</div>
+                    </div>
+                    <div class="col-sm-3 col-6">
+                        <div class="metric-label">Cumulative H₂S</div>
+                        <div class="fs-4 fw-bold text-warning">{{ total_cumulative_exposure or 595.3 }} <span class="fs-6 text-muted">units</span></div>
+                        <div class="small text-muted">Plant-Wide Exposure</div>
+                    </div>
+                    <div class="col-sm-3 col-6">
+                        <div class="metric-label">Shift Scans</div>
+                        <div class="fs-4 fw-bold text-info">{{ total_scans or 43 }}</div>
+                        <div class="small text-muted">Entry / Exit Logs</div>
+                    </div>
+                    <div class="col-sm-3 col-6">
+                        <div class="metric-label">Vision Engine</div>
+                        <div class="fs-4 fw-bold text-success">CIELAB</div>
+                        <div class="small text-muted">OpenCV ROI</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Hero Visualization: Dynamic Sensor & Exposure Simulation -->
+            <div class="col-lg-5">
+                <div class="safety-card position-relative p-4" style="background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: var(--shadow-md);">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="small text-uppercase text-muted fw-bold tracking-wide">
+                            <i class="fa-solid fa-radiation text-warning me-1"></i> Live H₂S Exposure Assessment
+                        </div>
+                        <span class="badge-high" id="heroStatusBadge">HIGH EXPOSURE ALERT</span>
+                    </div>
+
+                    <!-- Sensor Colorimetric Disc Animation -->
+                    <div class="text-center my-4">
+                        <div id="heroSensorDisc" class="sensor-color-disc" style="background-color: #f97316; --current-glow: rgba(249, 115, 22, 0.3); width: 180px; height: 180px; border: 4px solid #ffffff; box-shadow: 0 10px 25px rgba(0,0,0,0.1);"></div>
+                        <div class="h2 fw-bold mb-1" style="color: var(--text-main);" id="heroExposureValue">75.0 <span class="fs-6 text-warning fw-normal">ppm</span></div>
+                        <div class="small text-info code-font" id="heroColorMetrics">RGB(249, 115, 22) &bull; L* 63.1 a* 48.2 b* 65.5</div>
+                    </div>
+
+                    <!-- Risk Gauge Slider Preview -->
+                    <div class="p-3 rounded-3 mb-3 border" style="background: #f8fafc; border-color: var(--border-color) !important;">
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <span>0 Safe</span>
+                            <span>25 Caution</span>
+                            <span class="text-warning fw-bold">50 High</span>
+                            <span>100+ Critical</span>
+                        </div>
+                        <div class="progress" style="height: 8px; background: #e2e8f0;">
+                            <div class="progress-bar" id="heroProgressBar" role="progressbar" style="width: 75%; background: linear-gradient(90deg, #22c55e, #eab308, #f97316);" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <span class="small text-muted"><i class="fa-solid fa-temperature-three-quarters text-warning me-1"></i> T: 31°C | H: 72% (Env Comp Applied)</span>
+                        <a href="{{ url_for('dashboard.worker_dashboard') }}" class="btn btn-sm btn-outline-info">
+                            View Worker Exposure &rarr;
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 1 & 2: Problem & Our Solution -->
+<section class="py-5 bg-surface-alt border-top" style="border-color: var(--border-color) !important;">
+    <div class="container-fluid px-lg-5">
+        <div class="text-center max-w-700 mx-auto mb-5">
+            <h6 class="text-info text-uppercase fw-bold small tracking-wide">The Industrial Challenge</h6>
+            <h2 class="display-6 fw-bold" style="color: var(--text-main);">Silent Danger Meets Next-Gen Vision</h2>
+            <p class="text-muted" style="font-size: 1.05rem;">
+                Hydrogen Sulfide (H₂S) causes olfactory fatigue within seconds at dangerous concentrations. Traditional electronic dosimeters require frequent recalibration and are costly, while analog chemical badges lack automated digital logging.
+            </p>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="safety-card h-100">
+                    <div class="fs-2 text-danger mb-3"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <h4 class="fw-bold mb-2" style="color: var(--text-main);">1. The Problem</h4>
+                    <p class="card-desc mb-0 text-muted" style="font-size: 0.95rem; line-height: 1.65;">
+                        H₂S is rapidly toxic, corrosive, and flammable. In refineries, wastewater utilities, and drilling rigs, workers face subtle shift increments that silently accumulate, increasing risks of chronic pulmonary and neurological harm.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="safety-card h-100">
+                    <div class="fs-2 text-info mb-3"><i class="fa-solid fa-microchip"></i></div>
+                    <h4 class="fw-bold mb-2" style="color: var(--text-main);">2. Our Solution</h4>
+                    <p class="card-desc mb-0 text-muted" style="font-size: 0.95rem; line-height: 1.65;">
+                        H₂SENSE pairs wearable colorimetric indicator badges with optical Computer Vision. Workers perform 5-second check-in and check-out scans. The platform detects subtle chromatic shifts, calibrates for ambient temperature and humidity, and logs cumulative exposure.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="safety-card h-100">
+                    <div class="fs-2 text-success mb-3"><i class="fa-solid fa-chart-pie"></i></div>
+                    <h4 class="fw-bold mb-2" style="color: var(--text-main);">3. Actionable Insights</h4>
+                    <p class="card-desc mb-0 text-muted" style="font-size: 0.95rem; line-height: 1.65;">
+                        Shift subtraction eliminates baseline noise. Plant safety officers gain a live bird's-eye view of high-risk personnel, department exposures, badge expiration statuses, and compliance audits through persistent MySQL records.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dedicated Hub: Where to Track H2S Exposure & Cumulative Exposure -->
+        <div class="mt-5 pt-4 border-top" style="border-color: var(--border-color) !important;">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+                <div>
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 py-1 px-3 mb-2">
+                        <i class="fa-solid fa-location-crosshairs me-1"></i> Exposure Navigation Guide
+                    </span>
+                    <h3 class="h4 fw-bold mb-1" style="color: var(--text-main);">Where to View H₂S Exposure & Cumulative Data</h3>
+                    <p class="mb-0 text-muted" style="font-size: 0.9rem;">
+                        Access real-time readings, individual operator cumulative totals, and facility-wide compliance logs across these dedicated workstations:
+                    </p>
+                </div>
+                <div class="mt-3 mt-md-0">
+                    <a href="{{ url_for('workers.export_workers_excel') }}" class="btn btn-sm btn-outline-success">
+                        <i class="fa-solid fa-file-excel me-1"></i> Download Worker Excel Roster (.xlsx)
+                    </a>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <!-- Location 1: Worker Dashboard -->
+                <div class="col-lg-3 col-md-6">
+                    <div class="safety-card h-100 p-3" style="background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="fa-solid fa-user-shield text-info fs-4"></i>
+                            <h5 class="mb-0 fs-6 fw-bold" style="color: var(--text-main);">Worker Dashboard</h5>
+                        </div>
+                        <p class="text-muted mb-3" style="font-size: 0.85rem; line-height: 1.5;">
+                            Features two hero KPI cards: <strong>"Today's Shift H₂S Exposure"</strong> and <strong>"Total Cumulative Exposure"</strong>, real-time threshold gauge, and shift increment delta history.
+                        </p>
+                        <a href="{{ url_for('dashboard.worker_dashboard') }}" class="btn btn-sm btn-safety-outline w-100 py-1" style="font-size: 0.8rem;">
+                            <i class="fa-solid fa-gauge-high me-1"></i> Open Worker View &rarr;
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Location 2: Admin Dashboard -->
+                <div class="col-lg-3 col-md-6">
+                    <div class="safety-card h-100 p-3" style="background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="fa-solid fa-chart-line text-warning fs-4"></i>
+                            <h5 class="mb-0 fs-6 fw-bold" style="color: var(--text-main);">Safety Analytics</h5>
+                        </div>
+                        <p class="text-muted mb-3" style="font-size: 0.85rem; line-height: 1.5;">
+                            Monitors <strong>Total Facility Cumulative H₂S Exposure</strong>, high-risk personnel list, risk distribution doughnut, and 7-day plant-wide exposure telemetry trends.
+                        </p>
+                        <a href="{{ url_for('dashboard.admin_dashboard') }}" class="btn btn-sm btn-safety-outline w-100 py-1" style="font-size: 0.8rem;">
+                            <i class="fa-solid fa-chart-pie me-1"></i> Open Admin View &rarr;
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Location 3: Scanner Workstation -->
+                <div class="col-lg-3 col-md-6">
+                    <div class="safety-card h-100 p-3" style="background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="fa-solid fa-camera text-success fs-4"></i>
+                            <h5 class="mb-0 fs-6 fw-bold" style="color: var(--text-main);">Optical Scanner</h5>
+                        </div>
+                        <p class="text-muted mb-3" style="font-size: 0.85rem; line-height: 1.5;">
+                            Calculates <strong>Raw Exposure</strong>, applies <strong>Temperature/Humidity compensation</strong>, and computes <strong>Shift Delta (Exit - Entry)</strong> to increment cumulative logs.
+                        </p>
+                        <a href="{{ url_for('scanner.scanner_view') }}" class="btn btn-sm btn-safety-outline w-100 py-1" style="font-size: 0.8rem;">
+                            <i class="fa-solid fa-expand me-1"></i> Open Scanner &rarr;
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Location 4: Excel Data Export -->
+                <div class="col-lg-3 col-md-6">
+                    <div class="safety-card h-100 p-3" style="background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="fa-solid fa-file-excel text-success fs-4"></i>
+                            <h5 class="mb-0 fs-6 fw-bold" style="color: var(--text-main);">Excel Master Sheet</h5>
+                        </div>
+                        <p class="text-muted mb-3" style="font-size: 0.85rem; line-height: 1.5;">
+                            Exportable <code>.xlsx</code> workbook containing dedicated columns for <strong>Cumulative Exposure (ppm)</strong>, <strong>Latest Reading</strong>, and <strong>Full Scan Logs</strong>.
+                        </p>
+                        <a href="{{ url_for('workers.export_workers_excel') }}" class="btn btn-sm btn-outline-success w-100 py-1" style="font-size: 0.8rem;">
+                            <i class="fa-solid fa-download me-1"></i> Download .XLSX &rarr;
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 3: How It Works & Pipeline Architecture -->
+<section class="py-5">
+    <div class="container-fluid px-lg-5">
+        <div class="text-center mb-5">
+            <h6 class="text-info text-uppercase fw-bold small tracking-wide">End-to-End Pipeline</h6>
+            <h2 class="display-6 fw-bold" style="color: var(--text-main);">How H₂SENSE Operates</h2>
+            <p class="text-muted">An honest, scientifically sound architecture that separates digital demonstration from certified industrial sensors.</p>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="safety-card text-center p-3 h-100">
+                    <div class="text-info fs-3 mb-2"><i class="fa-solid fa-flask-vial"></i></div>
+                    <div class="fw-bold mb-1 small" style="color: var(--text-main);">1. Sensor Color</div>
+                    <div class="text-muted" style="font-size: 0.75rem;">Colorimetric chemical response (simulated digitally for prototype).</div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="safety-card text-center p-3 h-100">
+                    <div class="text-info fs-3 mb-2"><i class="fa-solid fa-camera"></i></div>
+                    <div class="fw-bold mb-1 small" style="color: var(--text-main);">2. Optical Capture</div>
+                    <div class="text-muted" style="font-size: 0.75rem;">Webcam or image upload with automated central ROI segmentation.</div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="safety-card text-center p-3 h-100">
+                    <div class="text-info fs-3 mb-2"><i class="fa-solid fa-eye"></i></div>
+                    <div class="fw-bold mb-1 small" style="color: var(--text-main);">3. OpenCV Vision</div>
+                    <div class="text-muted" style="font-size: 0.75rem;">Extracts dominant color, converts RGB to perceptual CIELAB (L*, a*, b*).</div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="safety-card text-center p-3 h-100">
+                    <div class="text-info fs-3 mb-2"><i class="fa-solid fa-sliders"></i></div>
+                    <div class="fw-bold mb-1 small" style="color: var(--text-main);">4. Calibration & Env</div>
+                    <div class="text-muted" style="font-size: 0.75rem;">Inverse-distance interpolation & T/H environmental compensation.</div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="safety-card text-center p-3 h-100">
+                    <div class="text-info fs-3 mb-2"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="fw-bold mb-1 small" style="color: var(--text-main);">5. Shift Subtraction</div>
+                    <div class="text-muted" style="font-size: 0.75rem;">Exit reading minus Entry reading = exact shift exposure.</div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6">
+                <div class="safety-card text-center p-3 h-100">
+                    <div class="text-info fs-3 mb-2"><i class="fa-solid fa-database"></i></div>
+                    <div class="fw-bold mb-1 small" style="color: var(--text-main);">6. MySQL Persistence</div>
+                    <div class="text-muted" style="font-size: 0.75rem;">WAMP database stores immutable records for occupational records.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 4 & 5: Computer Vision & Environmental Compensation -->
+<section class="py-5 bg-surface-alt border-top" style="border-color: var(--border-color) !important;">
+    <div class="container-fluid px-lg-5">
+        <div class="row g-5 align-items-center">
+            <div class="col-lg-6">
+                <div class="safety-card">
+                    <div class="safety-card-header">
+                        <div class="safety-card-title">
+                            <i class="fa-solid fa-brain text-info"></i> Computer Vision & CIELAB Color Space
+                        </div>
+                    </div>
+                    <p class="text-muted small">
+                        Cameras perceive light in non-linear RGB that varies across screen types and illuminations. H₂SENSE applies OpenCV to isolate a central 45% Region of Interest (ROI), eliminating specular reflections and outer shadows.
+                    </p>
+                    <ul class="list-unstyled small space-y-3 mb-4">
+                        <li class="mb-2"><i class="fa-solid fa-check text-info me-2"></i> <strong>CIE L*a*b* Conversion:</strong> Separates perceptual lightness (L*) from chromatic coordinates (a* green-red, b* blue-yellow).</li>
+                        <li class="mb-2"><i class="fa-solid fa-check text-info me-2"></i> <strong>Color Distance &Delta;E:</strong> Calculates Euclidean color variance relative to known laboratory calibration points.</li>
+                        <li class="mb-2"><i class="fa-solid fa-check text-info me-2"></i> <strong>Glance-Proof Margin Filtering:</strong> Mitigates user hand jitter and peripheral lighting gradients.</li>
+                    </ul>
+
+                    <div class="p-3 rounded border" style="background: #f1f5f9; border-color: var(--border-color) !important;">
+                        <div class="small fw-semibold mb-1" style="color: var(--text-main);">CIE L*a*b* Distance Metric:</div>
+                        <div class="code-font small text-info">&Delta;E* = &radic;[(&Delta;L*)^2 + (&Delta;a*)^2 + (&Delta;b*)^2]</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="safety-card">
+                    <div class="safety-card-header">
+                        <div class="safety-card-title">
+                            <i class="fa-solid fa-cloud-sun text-warning"></i> Environmental Compensation Layer
+                        </div>
+                    </div>
+                    <p class="text-muted small">
+                        Real-world colorimetric reactions accelerate with higher temperatures and elevated relative humidity. The H₂SENSE compensation service applies a mathematical correction baseline:
+                    </p>
+
+                    <div class="p-3 rounded border mb-3" style="background: #f1f5f9; border-color: var(--border-color) !important;">
+                        <div class="small fw-semibold mb-1" style="color: var(--text-main);">Prototype Correction Formula:</div>
+                        <div class="code-font small text-warning">
+                            E_corrected = E_raw + 0.35 &times; (T - 25&deg;C) + 0.15 &times; (H - 50%)
+                        </div>
+                    </div>
+
+                    <div class="row g-2 text-center small">
+                        <div class="col-6">
+                            <div class="p-2 rounded border" style="background: var(--bg-card); border-color: var(--border-color) !important;">
+                                <div class="text-muted">Temp Range</div>
+                                <div class="fw-bold" style="color: var(--text-main);">20&deg;C to 45&deg;C</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 rounded border" style="background: var(--bg-card); border-color: var(--border-color) !important;">
+                                <div class="text-muted">Humidity Range</div>
+                                <div class="fw-bold" style="color: var(--text-main);">30% to 90% RH</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 6: Technology Stack -->
+<section class="py-5">
+    <div class="container-fluid px-lg-5">
+        <div class="text-center mb-5">
+            <h6 class="text-info text-uppercase fw-bold small tracking-wide">Engineered For Production Readiness</h6>
+            <h2 class="display-6 fw-bold" style="color: var(--text-main);">Core Technology Stack</h2>
+        </div>
+
+        <div class="row g-3 text-center">
+            <div class="col-6 col-md-3 col-lg-2">
+                <div class="safety-card p-3">
+                    <i class="fa-brands fa-python fs-2 text-warning mb-2"></i>
+                    <div class="fw-bold small" style="color: var(--text-main);">Python 3.10</div>
+                    <div class="text-muted" style="font-size: 0.72rem;">Backend Core</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 col-lg-2">
+                <div class="safety-card p-3">
+                    <i class="fa-solid fa-cubes fs-2 text-info mb-2"></i>
+                    <div class="fw-bold small" style="color: var(--text-main);">Flask 3.0</div>
+                    <div class="text-muted" style="font-size: 0.72rem;">Microframework</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 col-lg-2">
+                <div class="safety-card p-3">
+                    <i class="fa-solid fa-eye fs-2 text-success mb-2"></i>
+                    <div class="fw-bold small" style="color: var(--text-main);">OpenCV 4</div>
+                    <div class="text-muted" style="font-size: 0.72rem;">Computer Vision</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 col-lg-2">
+                <div class="safety-card p-3">
+                    <i class="fa-solid fa-database fs-2 text-primary mb-2"></i>
+                    <div class="fw-bold small" style="color: var(--text-main);">MySQL / WAMP</div>
+                    <div class="text-muted" style="font-size: 0.72rem;">Persistent RDBMS</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 col-lg-2">
+                <div class="safety-card p-3">
+                    <i class="fa-solid fa-chart-pie fs-2 text-danger mb-2"></i>
+                    <div class="fw-bold small" style="color: var(--text-main);">Chart.js 4</div>
+                    <div class="text-muted" style="font-size: 0.72rem;">Analytics Graphs</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 col-lg-2">
+                <div class="safety-card p-3">
+                    <i class="fa-solid fa-calculator fs-2 text-secondary mb-2"></i>
+                    <div class="fw-bold small" style="color: var(--text-main);">NumPy & Sklearn</div>
+                    <div class="text-muted" style="font-size: 0.72rem;">Color Calibration</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 7: Prototype Disclaimer Callout -->
+<section class="py-5 border-top border-bottom" style="background: #fffbeb; border-color: #fef08a !important;">
+    <div class="container-fluid px-lg-5">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="fs-1 text-warning"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div>
+                        <h4 class="fw-bold mb-2" style="color: #92400e;">Prototype Demonstration Disclaimer</h4>
+                        <p class="mb-0 small" style="color: #78350f; line-height: 1.7;">
+                            {{ prototype_disclaimer }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+                <a href="{{ url_for('simulator.simulator_view') }}" class="btn-safety-primary">
+                    Launch Interactive Demo &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Hero preview interactive animation
+    document.addEventListener('DOMContentLoaded', () => {
+        const presets = [
+            { exp: 12.0, color: '#22c55e', status: 'SAFE', glow: 'rgba(34, 197, 94, 0.4)', rgb: 'RGB(34, 197, 94)', lab: 'L* 70.5 a* -60.2 b* 41.5' },
+            { exp: 35.0, color: '#eab308', status: 'CAUTION', glow: 'rgba(234, 179, 8, 0.4)', rgb: 'RGB(234, 179, 8)', lab: 'L* 75.3 a* 6.2 b* 76.4' },
+            { exp: 76.0, color: '#f97316', status: 'HIGH', glow: 'rgba(249, 115, 22, 0.5)', rgb: 'RGB(249, 115, 22)', lab: 'L* 63.1 a* 48.2 b* 65.5' },
+            { exp: 125.0, color: '#ef4444', status: 'CRITICAL', glow: 'rgba(239, 68, 68, 0.5)', rgb: 'RGB(239, 68, 68)', lab: 'L* 53.2 a* 67.1 b* 48.8' }
+        ];
+
+        let index = 2;
+        const disc = document.getElementById('heroSensorDisc');
+        const badge = document.getElementById('heroStatusBadge');
+        const expVal = document.getElementById('heroExposureValue');
+        const metrics = document.getElementById('heroColorMetrics');
+        const pbar = document.getElementById('heroProgressBar');
+
+        setInterval(() => {
+            index = (index + 1) % presets.length;
+            const p = presets[index];
+            disc.style.backgroundColor = p.color;
+            disc.style.setProperty('--current-glow', p.glow);
+            expVal.innerHTML = `${p.exp.toFixed(1)} <span class="fs-6 text-muted">units</span>`;
+            metrics.textContent = `${p.rgb} • ${p.lab}`;
+            badge.textContent = `${p.status} LEVEL`;
+            badge.className = p.status === 'SAFE' ? 'badge-safe' : (p.status === 'CAUTION' ? 'badge-caution' : (p.status === 'HIGH' ? 'badge-high' : 'badge-critical'));
+            pbar.style.width = Math.min(100, (p.exp / 150) * 100) + '%';
+        }, 3500);
+    });
+</script>
+{% endblock %}

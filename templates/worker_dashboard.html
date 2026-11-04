@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+
+{% block title %}Worker Personal Exposure Portal — {{ worker.worker_code }} — H₂SENSE{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-lg-5 py-4">
+    <!-- Header with Worker Switcher -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom" style="border-color: var(--border-color) !important;">
+        <div>
+            <span class="text-info small text-uppercase fw-bold"><i class="fa-solid fa-id-badge me-1"></i> Individual Occupational Health Dossier</span>
+            <h1 class="h2 fw-bold text-dark mb-1">
+                {{ worker.name }} <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">{{ worker.worker_code }}</span>
+            </h1>
+            <p class="text-muted small mb-0">
+                Department: <strong class="text-dark">{{ worker.department }}</strong> &bull; Role: <strong class="text-dark">{{ worker.role }}</strong>
+            </p>
+        </div>
+
+        <!-- Worker Quick Switcher Dropdown -->
+        <div class="d-flex align-items-center gap-2 mt-3 mt-md-0">
+            <label for="switchWorker" class="small text-muted me-1">Switch Operator:</label>
+            <select id="switchWorker" class="form-select form-select-sm form-control-safety" style="width: auto;" onchange="window.location.href='/worker-dashboard/' + this.value;">
+                {% for w in all_workers %}
+                    <option value="{{ w.id }}" {% if w.id == worker.id %}selected{% endif %}>
+                        {{ w.worker_code }} - {{ w.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            <a href="{{ url_for('scanner.scanner_view') }}" class="btn btn-sm btn-safety-primary">
+                <i class="fa-solid fa-camera me-1"></i> Scan Badge
+            </a>
+        </div>
+    </div>
+
+    <!-- Top 4 Worker KPI Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Card 1: Current Reading & Status -->
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="metric-label">Latest Reading & Status</div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <div class="metric-value {{ 'status-critical' if latest_record and latest_record.status == 'CRITICAL' else ('status-high' if latest_record and latest_record.status == 'HIGH' else ('status-caution' if latest_record and latest_record.status == 'CAUTION' else 'status-safe')) }}">
+                        {{ latest_record.corrected_exposure if latest_record else 0.0 }}
+                    </div>
+                    <span class="fs-6 text-muted">units</span>
+                </div>
+                <div class="metric-sub">
+                    {% if latest_record %}
+                        <span class="{{ 'badge-critical' if latest_record.status == 'CRITICAL' else ('badge-high' if latest_record.status == 'HIGH' else ('badge-caution' if latest_record.status == 'CAUTION' else 'badge-safe')) }}">
+                            {{ latest_record.status }}
+                        </span>
+                    {% else %}
+                        <span class="badge-safe">NO DATA</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Today's Shift Exposure -->
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="metric-label">Today's Shift Delta</div>
+                <div class="metric-value text-info">{{ today_shift_exposure }} <span class="fs-6 text-muted">units</span></div>
+                <div class="metric-sub">
+                    <i class="fa-solid fa-arrow-trend-up text-info"></i> Shift increment (Exit - Entry)
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Cumulative Badge Exposure -->
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="metric-label">Cumulative Badge Exposure</div>
+                <div class="metric-value text-warning">{{ cumulative_exposure }} <span class="fs-6 text-muted">units</span></div>
+                <div class="metric-sub">
+                    <i class="fa-solid fa-layer-group text-warning"></i> Sum of all recorded shifts
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Badge Lifecycle & Ambient Conditions -->
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="metric-label">Assigned Badge Status</div>
+                <div class="fs-4 fw-bold text-dark mb-1 code-font">{{ badge.badge_code if badge else 'NONE' }}</div>
+                <div class="metric-sub">
+                    {% if badge %}
+                        {% if badge.validity_status == 'VALID' %}
+                            <span class="badge-safe"><i class="fa-solid fa-check"></i> VALID ({{ badge.days_remaining }}d)</span>
+                        {% elif badge.validity_status == 'NEAR EXPIRY' %}
+                            <span class="badge-caution"><i class="fa-solid fa-clock"></i> EXPIRING IN {{ badge.days_remaining }}d</span>
+                        {% else %}
+                            <span class="badge-critical"><i class="fa-solid fa-xmark"></i> EXPIRED</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge bg-secondary">No Badge</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts & History Log -->
+    <div class="row g-4 mb-4">
+        <!-- Worker Personal Exposure Progression Line Chart -->
+        <div class="col-lg-8">
+            <div class="safety-card h-100">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-chart-line text-info"></i> Personal Exposure History Curve
+                    </div>
+                    <span class="small text-muted">Timeline of Entry & Exit check-ins</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="workerPersonalChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Environmental Context of Last Reading -->
+        <div class="col-lg-4">
+            <div class="safety-card h-100">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-cloud-sun text-warning"></i> Last Scan Environment
+                    </div>
+                </div>
+
+                {% if latest_record %}
+                    <div class="p-3 rounded-3 border mb-3" style="background: #f8fafc; border-color: var(--border-color) !important;">
+                        <div class="row g-2 text-center">
+                            <div class="col-6 border-end" style="border-color: var(--border-color) !important;">
+                                <div class="text-muted small">Temperature</div>
+                                <div class="fs-4 fw-bold text-warning code-font">{{ latest_record.temperature }}°C</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted small">Humidity</div>
+                                <div class="fs-4 fw-bold text-info code-font">{{ latest_record.humidity }}%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="small text-muted space-y-2">
+                        <div class="d-flex justify-content-between py-1 border-bottom" style="border-color: var(--border-color) !important;">
+                            <span>Scan Checkpoint:</span>
+                            <span class="text-dark fw-semibold">{{ latest_record.scan_type }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom" style="border-color: var(--border-color) !important;">
+                            <span>Timestamp:</span>
+                            <span class="code-font text-dark">{{ latest_record.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom" style="border-color: var(--border-color) !important;">
+                            <span>Sampled Hex:</span>
+                            <span class="code-font text-info">
+                                <span class="d-inline-block rounded-circle me-1" style="width: 10px; height: 10px; background-color: rgb({{ latest_record.r }}, {{ latest_record.g }}, {{ latest_record.b }});"></span>
+                                #{{ "%02x%02x%02x"|format(latest_record.r, latest_record.g, latest_record.b) }}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1">
+                            <span>CIELAB Values:</span>
+                            <span class="code-font text-dark">L*{{ latest_record.lab_l|round(1) }} a*{{ latest_record.lab_a|round(1) }} b*{{ latest_record.lab_b|round(1) }}</span>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4 text-muted small">
+                        No scan records found for this worker yet.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Scans Table for This Worker -->
+    <div class="safety-card">
+        <div class="safety-card-header">
+            <div class="safety-card-title">
+                <i class="fa-solid fa-list-check text-info"></i> Individual Shift Scans & Exposure Record Log
+            </div>
+            <span class="small text-muted">{{ records|length }} total records recorded</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table-safety">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Scan Type</th>
+                        <th>Color Sample</th>
+                        <th>Raw Estimate</th>
+                        <th>Ambient (T / H)</th>
+                        <th>Corrected Exposure</th>
+                        <th>Shift Increment</th>
+                        <th>Cumulative Total</th>
+                        <th>Risk Assessment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                        <tr>
+                            <td class="code-font small text-muted">{{ r.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <span class="badge {{ 'bg-info bg-opacity-10 text-info border border-info border-opacity-25' if r.scan_type == 'ENTRY' else 'bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25' }} small">
+                                    {{ r.scan_type }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="d-inline-block rounded-circle me-1" style="width: 14px; height: 14px; background-color: rgb({{ r.r }}, {{ r.g }}, {{ r.b }}); vertical-align: middle; border: 1px solid #cbd5e1;"></span>
+                                <span class="code-font small text-muted">rgb({{ r.r }}, {{ r.g }}, {{ r.b }})</span>
+                            </td>
+                            <td class="code-font text-muted small">{{ r.raw_exposure }}</td>
+                            <td class="code-font small text-muted">{{ r.temperature }}°C / {{ r.humidity }}%</td>
+                            <td class="code-font fw-bold text-dark small">{{ r.corrected_exposure }}</td>
+                            <td class="code-font text-info small">+{{ r.shift_exposure }}</td>
+                            <td class="code-font text-warning fw-bold small">{{ r.cumulative_exposure }}</td>
+                            <td>
+                                {% if r.status == 'SAFE' %}
+                                    <span class="badge-safe">SAFE</span>
+                                {% elif r.status == 'CAUTION' %}
+                                    <span class="badge-caution">CAUTION</span>
+                                {% elif r.status == 'HIGH' %}
+                                    <span class="badge-high">HIGH</span>
+                                {% else %}
+                                    <span class="badge-critical">CRITICAL</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted small">
+                                No scan history available for this worker.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const recordsData = {{ records_json | tojson }};
+        
+        // Reverse so chronological order left-to-right
+        const chronological = recordsData.slice().reverse();
+
+        const ctx = document.getElementById('workerPersonalChart');
+        if (ctx && chronological.length > 0) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chronological.map(r => r.date_only + ' ' + r.time_only + ' (' + r.scan_type + ')'),
+                    datasets: [
+                        {
+                            label: 'Corrected Exposure (ppm)',
+                            data: chronological.map(r => r.corrected_exposure),
+                            borderColor: '#06b6d4',
+                            backgroundColor: 'rgba(6, 182, 212, 0.15)',
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: chronological.map(r => {
+                                if (r.status === 'CRITICAL') return '#ef4444';
+                                if (r.status === 'HIGH') return '#f97316';
+                                if (r.status === 'CAUTION') return '#eab308';
+                                return '#22c55e';
+                            }),
+                            pointRadius: 5
+                        },
+                        {
+                            label: 'Cumulative Exposure (ppm)',
+                            data: chronological.map(r => r.cumulative_exposure),
+                            borderColor: '#eab308',
+                            borderDash: [5, 5],
+                            tension: 0.2,
+                            fill: false,
+                            pointRadius: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#334155', font: { weight: '500' } } },
+                        tooltip: { backgroundColor: '#0f172a', borderColor: '#cbd5e1', borderWidth: 1 }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#475569', maxRotation: 45, font: { weight: '500' } }, grid: { color: 'rgba(0, 0, 0, 0.05)' } },
+                        y: { ticks: { color: '#475569', font: { weight: '500' } }, grid: { color: 'rgba(0, 0, 0, 0.05)' }, min: 0 }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

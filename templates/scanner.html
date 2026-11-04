@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}Optical Color Scanner Workstation — H₂SENSE{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-lg-5 py-4">
+    <!-- Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom" style="border-color: var(--border-color) !important;">
+        <div>
+            <span class="text-info small text-uppercase fw-bold"><i class="fa-solid fa-camera-retro me-1"></i> Computer Vision Inspection Station</span>
+            <h1 class="h2 fw-bold text-dark mb-1">Color Detection & Exposure Assessment</h1>
+            <p class="text-muted small mb-0">
+                Detects colorimetric sensor response via live camera, image upload, or digital simulator input to estimate cumulative exposure.
+            </p>
+        </div>
+        <div class="mt-3 mt-md-0">
+            <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 py-2 px-3">
+                <i class="fa-solid fa-eye me-1"></i> OpenCV ROI Analyzer Active
+            </span>
+        </div>
+    </div>
+
+    <!-- Main Scanner Interface Grid -->
+    <div class="row g-4">
+        <!-- Left Column: Input Modalities (Camera / Upload / Simulator) -->
+        <div class="col-lg-7">
+            <div class="safety-card mb-4">
+                <!-- Nav Tabs for Input Mode -->
+                <ul class="nav nav-pills mb-3 border-bottom pb-2" id="scannerModeTabs" role="tablist" style="border-color: var(--border-color) !important;">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tab-camera" data-bs-toggle="pill" data-bs-target="#modeCamera" type="button" role="tab">
+                            <i class="fa-solid fa-video me-1"></i> 1. Live Camera Stream
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-upload" data-bs-toggle="pill" data-bs-target="#modeUpload" type="button" role="tab">
+                            <i class="fa-solid fa-cloud-arrow-up me-1"></i> 2. Upload Badge Image
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-simulator" data-bs-toggle="pill" data-bs-target="#modeSimulator" type="button" role="tab">
+                            <i class="fa-solid fa-microchip me-1"></i> 3. Digital Simulator Bridge
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Contents -->
+                <div class="tab-content" id="scannerTabContent">
+                    <!-- MODE A: Live Webcam Stream with Reticle -->
+                    <div class="tab-pane fade show active" id="modeCamera" role="tabpanel">
+                        <div class="camera-container mb-3" id="cameraBox">
+                            <video id="cameraVideo" autoplay playsinline muted></video>
+                            <canvas id="cameraCanvas" style="display: none;"></canvas>
+                            <div class="scanner-reticle"></div>
+                            
+                            <!-- Camera placeholder if offline -->
+                            <div id="cameraOfflineMsg" class="text-center p-4" style="display: none;">
+                                <i class="fa-solid fa-camera-slash fs-1 text-muted mb-2"></i>
+                                <div class="text-white fw-bold">Camera Stream Inactive</div>
+                                <div class="text-muted small">Click "Start Camera" below to grant browser permission.</div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" id="btnStartCamera" class="btn btn-sm btn-safety-outline">
+                                <i class="fa-solid fa-play me-1 text-success"></i> Start Camera
+                            </button>
+                            <button type="button" id="btnCaptureSnapshot" class="btn btn-sm btn-safety-primary" disabled>
+                                <i class="fa-solid fa-camera me-1"></i> Capture ROI Snapshot
+                            </button>
+                            <button type="button" id="btnStopCamera" class="btn btn-sm btn-safety-outline text-danger" disabled>
+                                <i class="fa-solid fa-stop me-1"></i> Stop Camera
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- MODE B: Image File Upload -->
+                    <div class="tab-pane fade" id="modeUpload" role="tabpanel">
+                        <div class="p-4 border-2 border-dashed border-secondary border-opacity-50 rounded-3 text-center bg-light" id="dropZone" style="cursor: pointer;">
+                            <i class="fa-solid fa-file-image fs-1 text-info mb-2"></i>
+                            <h6 class="text-dark fw-semibold mb-1">Drag & Drop Badge Photo Here</h6>
+                            <p class="text-muted small mb-3">or browse files from your workstation (JPEG, PNG supported)</p>
+                            <input type="file" id="fileBadgeUpload" class="d-none" accept="image/jpeg,image/png">
+                            <button type="button" class="btn btn-sm btn-safety-outline" onclick="document.getElementById('fileBadgeUpload').click()">
+                                <i class="fa-solid fa-folder-open me-1"></i> Browse Badge Image
+                            </button>
+                        </div>
+                        <div id="uploadPreviewBox" class="mt-3 text-center" style="display: none;">
+                            <img id="uploadPreviewImg" src="" alt="Uploaded Badge Preview" class="img-fluid rounded border border-secondary" style="max-height: 240px;">
+                        </div>
+                    </div>
+
+                    <!-- MODE C: Direct Digital Simulator Feed -->
+                    <div class="tab-pane fade" id="modeSimulator" role="tabpanel">
+                        <div class="p-3 rounded-3 border mb-3" style="background: #f8fafc; border-color: var(--border-color) !important;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="small text-muted fw-bold text-uppercase">Direct Virtual Preset Bridge</span>
+                                <a href="{{ url_for('simulator.simulator_view') }}" target="_blank" class="small text-info">
+                                    Open Simulator Tab &nearr;
+                                </a>
+                            </div>
+                            <p class="small text-muted mb-3">
+                                Select a simulated exposure level below to directly feed its calibrated color into the computer vision pipeline without requiring physical hardware:
+                            </p>
+                            
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-success btn-sim-feed" data-r="34" data-g="197" data-b="94" data-exp="0">
+                                    0 (Safe Green)
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-success btn-sim-feed" data-r="163" data-g="230" data-b="53" data-exp="25">
+                                    25 (Lime Green)
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning btn-sim-feed" data-r="234" data-g="179" data-b="8" data-exp="50">
+                                    50 (Caution Yellow)
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning btn-sim-feed" data-r="249" data-g="115" data-b="22" data-exp="75">
+                                    75 (High Orange)
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-sim-feed" data-r="239" data-g="68" data-b="68" data-exp="100">
+                                    100 (Critical Red)
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-sim-feed" data-r="127" data-g="29" data-b="29" data-exp="200">
+                                    200 (Severe Dark Red)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Environmental Parameters Card -->
+            <div class="safety-card">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-temperature-three-quarters text-warning"></i> Ambient Environmental Sensor Compensation
+                    </div>
+                    <span class="badge bg-light border text-muted">Baseline: 25°C / 50% RH</span>
+                </div>
+                
+                <div class="row g-4">
+                    <!-- Temperature Slider -->
+                    <div class="col-md-6">
+                        <label for="tempInput" class="form-label-safety d-flex justify-content-between">
+                            <span>Ambient Temperature</span>
+                            <span class="code-font text-warning fw-bold" id="tempDisplay">25.0 °C</span>
+                        </label>
+                        <div class="slider-container">
+                            <input type="range" class="form-range" id="tempInput" min="20.0" max="45.0" step="0.5" value="25.0">
+                        </div>
+                        <div class="d-flex justify-content-between small text-muted mt-1">
+                            <span>20 °C</span>
+                            <span>Standard (25°C)</span>
+                            <span>45 °C</span>
+                        </div>
+                    </div>
+
+                    <!-- Humidity Slider -->
+                    <div class="col-md-6">
+                        <label for="humInput" class="form-label-safety d-flex justify-content-between">
+                            <span>Relative Humidity (RH)</span>
+                            <span class="code-font text-info fw-bold" id="humDisplay">50.0 %</span>
+                        </label>
+                        <div class="slider-container">
+                            <input type="range" class="form-range" id="humInput" min="30.0" max="90.0" step="1.0" value="50.0">
+                        </div>
+                        <div class="d-flex justify-content-between small text-muted mt-1">
+                            <span>30% Dry</span>
+                            <span>Standard (50%)</span>
+                            <span>90% Humid</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Worker Selection, CV Result Card & ENTRY/EXIT Save Actions -->
+        <div class="col-lg-5">
+            <!-- Worker Selection Form -->
+            <div class="safety-card mb-4">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-id-card-clip text-info"></i> Worker & Badge Assignment
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="workerSelect" class="form-label-safety">Select Tracked Worker</label>
+                    <select id="workerSelect" class="form-select form-control-safety" {% if user_role == 'WORKER' %}disabled{% endif %}>
+                        {% for w in workers %}
+                            {% set badge = w.get_active_badge() %}
+                            <option value="{{ w.id }}" 
+                                    data-badge-id="{{ badge.id if badge else '' }}"
+                                    data-badge-code="{{ badge.badge_code if badge else 'NONE' }}"
+                                    data-dept="{{ w.department }}"
+                                    data-validity="{{ badge.validity_status if badge else 'NONE' }}"
+                                    {% if user_role == 'WORKER' and w.id == logged_in_worker_id %}selected{% elif user_role != 'WORKER' and w.worker_code == 'W104' %}selected{% endif %}>
+                                {{ w.worker_code }} — {{ w.name }} ({{ w.department }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {% if user_role == 'WORKER' %}
+                    <div class="form-text text-warning small mt-1">
+                        <i class="fa-solid fa-lock me-1"></i> Security: You can only scan your own badge.
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="row g-2 p-2 rounded border small" style="background: #f8fafc; border-color: var(--border-color) !important;">
+                    <div class="col-6">
+                        <span class="text-muted">Assigned Badge:</span>
+                        <div class="code-font fw-bold text-dark" id="selectedBadgeCode">BD-W104</div>
+                    </div>
+                    <div class="col-6 text-end">
+                        <span class="text-muted">Badge Validity:</span>
+                        <div id="selectedBadgeValidity">
+                            <span class="badge-safe">VALID</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CV Analysis Result Card -->
+            <div class="safety-card position-relative" id="resultCard">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-microchip text-info"></i> Color Detection Assessment
+                    </div>
+                    <span id="scanStatusBadge" class="badge-safe">READY TO SCAN</span>
+                </div>
+
+                <!-- Color Detected Preview Swatch -->
+                <div class="d-flex align-items-center gap-3 p-3 bg-light rounded-3 border mb-3" style="border-color: var(--border-color) !important;">
+                    <div id="detectedColorBox" style="width: 72px; height: 72px; border-radius: 8px; background-color: #22c55e; border: 2px solid #cbd5e1; box-shadow: 0 0 15px rgba(34, 197, 94, 0.2); flex-shrink: 0;"></div>
+                    <div class="flex-grow-1">
+                        <div class="small text-muted text-uppercase fw-bold">Detected Colorimetric Response</div>
+                        <div class="code-font fw-bold text-dark fs-6" id="detectedRgbText">RGB(34, 197, 94)</div>
+                        <div class="code-font small text-info" id="detectedLabText">L* 70.5  a* -60.2  b* 41.5</div>
+                    </div>
+                </div>
+
+                <!-- Exposure Readings Breakdown -->
+                <div class="p-3 rounded-3 border mb-4 text-center" style="background: #f8fafc; border-color: var(--border-color) !important;">
+                    <div class="metric-label text-uppercase text-muted fw-bold mb-2" style="font-size: 0.85rem; letter-spacing: 0.5px;">Estimated Exposure Level</div>
+                    <div class="d-flex justify-content-center align-items-baseline gap-2">
+                        <div class="fs-1 fw-bold text-dark code-font" id="correctedEstimateValue">0.0</div>
+                        <div class="fs-5 text-muted fw-semibold">ppm</div>
+                    </div>
+                    <!-- Hidden elements kept for javascript compatibility -->
+                    <div class="d-none">
+                        <span id="rawEstimateValue">0.0</span>
+                        <span id="envCorrectionValue">0.0</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top small text-muted" style="border-color: var(--border-color) !important;">
+                        <span>Confidence Index: <strong class="text-dark" id="confidenceValue">98%</strong></span>
+                        <span id="riskSeverityText" class="status-safe fw-bold">SAFE (< 25 ppm)</span>
+                    </div>
+                </div>
+
+                <!-- Save Action Buttons -->
+                <div class="d-flex flex-column gap-2">
+                    <div class="d-flex gap-2">
+                        <button type="button" id="btnSaveEntry" class="btn btn-outline-success flex-grow-1 py-2 fw-semibold">
+                            <i class="fa-solid fa-right-to-bracket me-1"></i> [ RECORD ENTRY SCAN ]
+                        </button>
+                        <button type="button" id="btnSaveExit" class="btn btn-outline-warning flex-grow-1 py-2 fw-semibold">
+                            <i class="fa-solid fa-right-from-bracket me-1"></i> [ RECORD EXIT SCAN ]
+                        </button>
+                    </div>
+                    <div class="small text-muted text-center" style="font-size: 0.78rem;">
+                        <i class="fa-solid fa-circle-info me-1 text-info"></i>
+                        ENTRY sets the initial baseline. EXIT calculates: <code>shift_exposure = exit - entry</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Prefilled query parameters from simulator bridge
+    window.PREFILL_DATA = {
+        r: "{{ prefill_r }}",
+        g: "{{ prefill_g }}",
+        b: "{{ prefill_b }}",
+        exp: "{{ prefill_exp }}"
+    };
+</script>
+<script src="{{ url_for('static', filename='js/camera.js') }}"></script>
+<script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
+{% endblock %}

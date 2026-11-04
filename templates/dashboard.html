@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Administrator Exposure & Safety Analytics — H₂SENSE{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-lg-5 py-4">
+    <!-- Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom" style="border-color: var(--border-color) !important;">
+        <div>
+            <span class="text-info small text-uppercase fw-bold"><i class="fa-solid fa-chart-line me-1"></i> Industrial Hygiene Analytics</span>
+            <h1 class="h2 fw-bold text-dark mb-1">Workforce Exposure Dashboard</h1>
+            <p class="text-muted small mb-0">
+                Plant-wide cumulative H₂S monitoring, real-time threshold risk classifications, and badge lifecycle tracking.
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-3 mt-md-0">
+            <a href="{{ url_for('workers.export_workers_excel') }}" class="btn btn-sm btn-outline-success">
+                <i class="fa-solid fa-file-excel me-1"></i> Export Excel Roster
+            </a>
+            <button id="btnRefreshStats" class="btn btn-sm btn-safety-outline">
+                <i class="fa-solid fa-rotate me-1"></i> Sync Telemetry
+            </button>
+            <a href="{{ url_for('scanner.scanner_view') }}" class="btn btn-sm btn-safety-primary">
+                <i class="fa-solid fa-expand me-1"></i> Launch Scanner
+            </a>
+        </div>
+    </div>
+
+    <!-- Top 4 Statistics KPI Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Card 1: Active Workers -->
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="metric-label">Active Workers</div>
+                <div class="metric-value text-dark" id="statActiveWorkers">{{ active_workers }}</div>
+                <div class="metric-sub">
+                    <span class="pulse-indicator green"></span> Tracked in refinery facility
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Today's Scans -->
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="metric-label">Today's Shift Scans</div>
+                <div class="metric-value text-info" id="statTodayScans">{{ today_scans }}</div>
+                <div class="metric-sub">
+                    <i class="fa-solid fa-check-double text-info"></i> Entry / Exit verified
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: High Risk Workers -->
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="metric-label">High / Critical Alerts</div>
+                <div class="metric-value text-danger" id="statHighRisk">{{ high_risk_count }}</div>
+                <div class="metric-sub">
+                    <i class="fa-solid fa-triangle-exclamation text-danger"></i> Requires hygiene review
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Total Cumulative Exposure -->
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="metric-label">Total Cumulative Exposure</div>
+                <div class="metric-value text-warning" id="statTotalExposure">{{ total_cumulative }} <span class="fs-6 text-muted">units</span></div>
+                <div class="metric-sub">
+                    <i class="fa-solid fa-layer-group text-warning"></i> Sum of all valid shift deltas
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1: 7-Day Exposure Trend & Risk Category Doughnut -->
+    <div class="row g-4 mb-4">
+        <!-- 7-Day Exposure Trend -->
+        <div class="col-lg-8">
+            <div class="safety-card h-100">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-chart-area text-info"></i> 7-Day Facility Average Exposure Trend
+                    </div>
+                    <span class="small text-muted">Corrected ppm</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Category Distribution Doughnut -->
+        <div class="col-lg-4">
+            <div class="safety-card h-100">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-chart-pie text-info"></i> Workforce Risk Distribution
+                    </div>
+                    <span class="small text-muted">By latest scan</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="riskDoughnutChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2: Worker Cumulative Comparison & Badge Validity Health -->
+    <div class="row g-4 mb-4">
+        <!-- Worker Exposure Comparison Bar Chart -->
+        <div class="col-lg-8">
+            <div class="safety-card h-100">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-chart-column text-info"></i> Cumulative Exposure by Personnel
+                    </div>
+                    <span class="small text-muted">Top tracked operators</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="workerBarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Badge Validity Monitor -->
+        <div class="col-lg-4">
+            <div class="safety-card h-100">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-id-badge text-warning"></i> Badge Expiration Monitor
+                    </div>
+                    <a href="{{ url_for('workers.workers_list') }}" class="small text-info">View All &rarr;</a>
+                </div>
+                
+                <div class="space-y-3" id="badgeHealthList">
+                    {% if badges_attention %}
+                        {% for b in badges_attention %}
+                            <div class="p-3 mb-2 rounded border d-flex justify-content-between align-items-center" style="background: #f8fafc; border-color: var(--border-color) !important;">
+                                <div>
+                                    <div class="code-font fw-bold text-dark">{{ b.badge_code }}</div>
+                                    <div class="small text-muted">{{ b.worker.worker_code }} &bull; {{ b.worker.name }}</div>
+                                </div>
+                                <div class="text-end">
+                                    {% if b.validity_status == 'EXPIRED' %}
+                                        <span class="badge bg-danger text-white">EXPIRED</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">NEAR EXPIRY ({{ b.days_remaining }}d)</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4 text-muted small">
+                            <i class="fa-solid fa-circle-check text-success fs-3 mb-2 d-block"></i>
+                            All assigned badges are within normal valid lifecycle limits.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- High Risk Alert List & Recent Scans Feed Tables -->
+    <div class="row g-4">
+        <!-- High Risk Workers Table -->
+        <div class="col-lg-5">
+            <div class="safety-card h-100">
+                <div class="safety-card-header">
+                    <div class="safety-card-title text-danger">
+                        <i class="fa-solid fa-triangle-exclamation"></i> High-Risk Operator Alerts
+                    </div>
+                    <span class="badge bg-danger bg-opacity-25 text-danger border border-danger">Action Required</span>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table-safety">
+                        <thead>
+                            <tr>
+                                <th>Worker</th>
+                                <th>Dept</th>
+                                <th>Current</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="highRiskTableBody">
+                            {% for item in high_risk_workers %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('dashboard.worker_dashboard', id=item.worker.id) }}" class="text-dark text-decoration-none fw-bold">
+                                            {{ item.worker.worker_code }}
+                                        </a>
+                                        <div class="small text-muted">{{ item.worker.name }}</div>
+                                    </td>
+                                    <td class="small text-muted">{{ item.worker.department }}</td>
+                                    <td class="code-font fw-bold text-warning">{{ item.latest.corrected_exposure }} u</td>
+                                    <td>
+                                        <span class="{{ 'badge-critical' if item.latest.status == 'CRITICAL' else 'badge-high' }}">
+                                            {{ item.latest.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3 small">
+                                        No workers currently in HIGH or CRITICAL alert state.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Scans Stream -->
+        <div class="col-lg-7">
+            <div class="safety-card h-100">
+                <div class="safety-card-header">
+                    <div class="safety-card-title">
+                        <i class="fa-solid fa-clock-rotate-left text-info"></i> Recent Shift Exposure Scans
+                    </div>
+                    <span class="small text-muted">Latest checkpoints</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table-safety">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Operator</th>
+                                <th>Type</th>
+                                <th>Color</th>
+                                <th>Corrected</th>
+                                <th>Shift &Delta;</th>
+                                <th>Risk</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentScansTableBody">
+                            {% for record in recent_scans %}
+                                <tr>
+                                    <td class="code-font small text-muted">{{ record.timestamp.strftime('%H:%M') }}</td>
+                                    <td>
+                                        <div class="fw-bold text-dark small">{{ record.worker.worker_code }}</div>
+                                        <div class="text-muted" style="font-size: 0.72rem;">{{ record.worker.name }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ 'bg-info bg-opacity-10 text-info border border-info border-opacity-25' if record.scan_type == 'ENTRY' else 'bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25' }} small">
+                                            {{ record.scan_type }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="d-inline-block rounded-circle" style="width: 14px; height: 14px; background-color: rgb({{ record.r }}, {{ record.g }}, {{ record.b }}); vertical-align: middle; border: 1px solid #cbd5e1;"></span>
+                                    </td>
+                                    <td class="code-font fw-bold text-dark small">{{ record.corrected_exposure }}</td>
+                                    <td class="code-font text-info small">+{{ record.shift_exposure }}</td>
+                                    <td>
+                                        {% if record.status == 'SAFE' %}
+                                            <span class="badge-safe">SAFE</span>
+                                        {% elif record.status == 'CAUTION' %}
+                                            <span class="badge-caution">CAUTION</span>
+                                        {% elif record.status == 'HIGH' %}
+                                            <span class="badge-high">HIGH</span>
+                                        {% else %}
+                                            <span class="badge-critical">CRITICAL</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
