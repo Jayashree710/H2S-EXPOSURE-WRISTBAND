@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2f4ee">
+  <meta name="description" content="H2SENSE is an academic prototype exploring colorimetric H2S exposure monitoring and cumulative workforce exposure tracking.">
+  <title>H2SENSE | Exposure Monitoring Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #202b25;
+      --muted: #647169;
+      --paper: #f2f4ee;
+      --white: #fffefa;
+      --line: #d7ddd4;
+      --green: #23734c;
+      --orange: #d66b32;
+      --mono: "DM Mono", Consolas, monospace;
+      --sans: "Manrope", "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: var(--sans);
+      line-height: 1.55;
+    }
+    a { color: inherit; }
+    .topbar {
+      min-height: 72px;
+      padding: 0 6vw;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 254, 250, .88);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 800; }
+    .brand-mark {
+      width: 30px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--green);
+      border-radius: 50%;
+      color: var(--green);
+      font: 500 11px var(--mono);
+    }
+    .topbar nav { display: flex; align-items: center; gap: clamp(16px, 3vw, 36px); }
+    .topbar nav a { color: var(--muted); font-size: 12px; font-weight: 700; text-decoration: none; }
+    .topbar nav a:hover { color: var(--green); }
+    .topbar nav .repo-link { color: var(--green); }
+    main { max-width: 1280px; margin: auto; padding: 0 6vw; }
+    .hero {
+      min-height: 580px;
+      padding: 78px 0 74px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(340px, .8fr);
+      align-items: center;
+      gap: clamp(48px, 8vw, 120px);
+    }
+    .eyebrow, .section-label { color: var(--green); font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    h1 { margin: 16px 0 12px; font-size: clamp(46px, 7vw, 84px); line-height: .98; letter-spacing: 0; }
+    .hero-copy { max-width: 600px; color: var(--muted); font-size: 16px; }
+    .prototype-note { max-width: 540px; margin-top: 30px; padding: 14px 16px; border-left: 3px solid var(--orange); background: #fffefa; color: #536058; font-size: 12px; }
+    .prototype-note strong { color: var(--ink); }
+    .simulator {
+      padding: 26px;
+      background: var(--white);
+      border: 1px solid var(--line);
+      box-shadow: 12px 12px 0 #e1e6dc;
+      animation: arrive .55s ease-out both;
+    }
+    .sim-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+    .sim-head h2 { margin: 0; font-size: 15px; }
+    .sim-head p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+    .demo-tag { white-space: nowrap; color: #76521a; background: #f7eed4; padding: 4px 7px; font: 500 9px var(--mono); }
+    .sensor-readout { margin: 28px 0; display: grid; grid-template-columns: 118px 1fr; align-items: center; gap: 22px; }
+    .sensor-disc {
+      width: 118px;
+      aspect-ratio: 1;
+      border: 7px solid #f0f1eb;
+      border-radius: 50%;
+      background: #d66b32;
+      box-shadow: inset 0 0 24px rgba(32, 43, 37, .16);
+      transition: background-color .18s ease;
+    }
+    .reading { font: 500 34px var(--mono); letter-spacing: 0; }
+    .reading small { color: var(--muted); font: 400 12px var(--sans); }
+    .risk { margin-top: 5px; color: var(--orange); font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .rgb { margin-top: 7px; color: var(--muted); font: 10px var(--mono); }
+    .slider-label { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; font-size: 11px; font-weight: 700; }
+    input[type="range"] { width: 100%; accent-color: var(--green); cursor: pointer; }
+    .scale { display: flex; justify-content: space-between; color: var(--muted); font: 9px var(--mono); }
+    .sim-foot { margin-top: 22px; padding-top: 15px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font: 10px var(--mono); }
+    .section { padding: 62px 0; border-top: 1px solid var(--line); }
+    .section h2 { max-width: 650px; margin: 10px 0 25px; font-size: clamp(25px, 4vw, 38px); line-height: 1.15; }
+    .flow { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .flow-step { padding: 20px 20px 20px 0; }
+    .flow-step + .flow-step { padding-left: 20px; border-left: 1px solid var(--line); }
+    .flow-step span { color: var(--orange); font: 500 11px var(--mono); }
+    .flow-step h3 { margin: 10px 0 5px; font-size: 14px; }
+    .flow-step p { margin: 0; color: var(--muted); font-size: 11px; }
+    .stack { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+    .stack span { padding: 6px 9px; border: 1px solid var(--line); color: #4d5b52; background: var(--white); font: 10px var(--mono); }
+    footer { display: flex; justify-content: space-between; gap: 20px; padding: 22px 6vw; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+    footer a { color: var(--green); font-weight: 700; text-decoration: none; }
+    @keyframes arrive { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 760px) {
+      .topbar { min-height: 62px; padding: 0 5vw; }
+      .topbar nav { gap: 12px; }
+      .topbar nav a { font-size: 10px; }
+      main { padding: 0 5vw; }
+      .hero { min-height: 0; padding: 58px 0; grid-template-columns: 1fr; gap: 34px; }
+      .hero-copy { font-size: 14px; }
+      .simulator { padding: 20px; box-shadow: 7px 7px 0 #e1e6dc; }
+      .flow { grid-template-columns: repeat(2, 1fr); }
+      .flow-step { padding: 16px 12px 16px 0; }
+      .flow-step + .flow-step { padding-left: 12px; }
+      .flow-step:nth-child(3) { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+      .flow-step:nth-child(4) { border-top: 1px solid var(--line); }
+      footer { padding: 20px 5vw; }
+    }
+    @media (max-width: 420px) {
+      .topbar nav a:first-child { display: none; }
+      .sensor-readout { grid-template-columns: 88px 1fr; gap: 16px; }
+      .sensor-disc { width: 88px; }
+      .reading { font-size: 27px; }
+      .sim-head { flex-wrap: wrap; }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#overview" aria-label="H2SENSE home"><span class="brand-mark">H₂S</span><span>H₂SENSE <span style="font-weight:500;color:#647169">/ FIELD PROTOTYPE</span></span></a>
+    <nav aria-label="Main navigation">
+      <a href="#overview">Overview</a>
+      <a href="#workflow">Workflow</a>
+      <a class="repo-link" href="https://github.com/Jayashree710/H2S-EXPOSURE-WRISTBAND">GitHub ↗</a>
+    </nav>
+  </header>
+  <main id="overview">
+    <section class="hero" aria-labelledby="page-title">
+      <div>
+        <div class="eyebrow">Colorimetric exposure monitoring / 2026</div>
+        <h1 id="page-title">H₂SENSE</h1>
+        <p class="hero-copy">An engineering prototype exploring how badge color can be translated into exposure estimates and cumulative workforce records.</p>
+        <div class="prototype-note"><strong>Simulation only.</strong> The color response and readings on this page are illustrative. This prototype is not a certified H₂S detector and must not be used for workplace safety decisions.</div>
+      </div>
+      <section class="simulator" aria-labelledby="sim-title">
+        <div class="sim-head">
+          <div><h2 id="sim-title">Digital badge response</h2><p>Interactive color-change illustration</p></div>
+          <span class="demo-tag">DEMO DATA</span>
+        </div>
+        <div class="sensor-readout" aria-live="polite">
+          <div class="sensor-disc" id="sensor-disc" aria-hidden="true"></div>
+          <div><div class="reading"><span id="reading">75</span> <small>ppm*</small></div><div class="risk" id="risk">High range</div><div class="rgb" id="rgb">RGB(225, 119, 43)</div></div>
+        </div>
+        <label class="slider-label" for="exposure"><span>Illustrative exposure level</span><span><span id="slider-value">75</span> ppm</span></label>
+        <input id="exposure" type="range" min="0" max="200" value="75" aria-describedby="scale-note">
+        <div class="scale" id="scale-note"><span>0</span><span>25</span><span>50</span><span>100</span><span>200 ppm</span></div>
+        <div class="sim-foot"><span>COLOR RESPONSE</span><span>SIMULATED / NOT A MEASUREMENT</span></div>
+      </section>
+    </section>
+    <section class="section" id="workflow" aria-labelledby="workflow-title">
+      <div class="section-label">System outline</div>
+      <h2 id="workflow-title">From badge color to a shift-level view.</h2>
+      <div class="flow">
+        <article class="flow-step"><span>01 / INPUT</span><h3>Color capture</h3><p>Image or camera input represents a colorimetric badge.</p></article>
+        <article class="flow-step"><span>02 / ANALYSIS</span><h3>Computer vision</h3><p>OpenCV extracts color values from a region of interest.</p></article>
+        <article class="flow-step"><span>03 / CALIBRATION</span><h3>Exposure estimate</h3><p>CIELAB calibration and environmental factors shape a prototype estimate.</p></article>
+        <article class="flow-step"><span>04 / RECORD</span><h3>Exposure history</h3><p>The Flask application records demonstration data for dashboard views.</p></article>
+      </div>
+      <div class="stack" aria-label="Technology stack"><span>FLASK</span><span>OPENCV</span><span>CIELAB</span><span>MYSQL</span><span>VANILLA JS</span></div>
+    </section>
+  </main>
+  <footer><span>*All values are simulated calibration-demonstration values, not certified occupational measurements.</span><a href="https://github.com/Jayashree710/H2S-EXPOSURE-WRISTBAND">View source on GitHub ↗</a></footer>
+  <script>
+    const slider = document.querySelector('#exposure');
+    const reading = document.querySelector('#reading');
+    const sliderValue = document.querySelector('#slider-value');
+    const risk = document.querySelector('#risk');
+    const rgb = document.querySelector('#rgb');
+    const disc = document.querySelector('#sensor-disc');
+    const stops = [
+      { value: 0, color: [34, 151, 92] },
+      { value: 25, color: [170, 174, 66] },
+      { value: 50, color: [222, 169, 51] },
+      { value: 100, color: [215, 91, 48] },
+      { value: 200, color: [126, 40, 42] }
+    ];
+    const thresholds = [
+      { limit: 25, label: 'Safe range', color: '#23734c' },
+      { limit: 50, label: 'Caution range', color: '#9a761c' },
+      { limit: 100, label: 'High range', color: '#d66b32' },
+      { limit: Infinity, label: 'Critical range', color: '#8f3030' }
+    ];
+    function updateDemo() {
+      const value = Number(slider.value);
+      let lower = stops[0];
+      let upper = stops[stops.length - 1];
+      for (let index = 1; index < stops.length; index += 1) {
+        if (value <= stops[index].value) {
+          lower = stops[index - 1];
+          upper = stops[index];
+          break;
+        }
+      }
+      const amount = (value - lower.value) / (upper.value - lower.value || 1);
+      const color = lower.color.map((channel, index) => Math.round(channel + (upper.color[index] - channel) * amount));
+      const colorText = `rgb(${color.join(', ')})`;
+      const status = thresholds.find((threshold) => value <= threshold.limit);
+      reading.textContent = value;
+      sliderValue.textContent = value;
+      risk.textContent = status.label;
+      risk.style.color = status.color;
+      rgb.textContent = `RGB(${color.join(', ')})`;
+      disc.style.backgroundColor = colorText;
+      slider.style.accentColor = status.color;
+    }
+    slider.addEventListener('input', updateDemo);
+    updateDemo();
+  </script>
+</body>
+</html>
